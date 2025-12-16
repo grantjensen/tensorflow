@@ -115,6 +115,7 @@ limitations under the License.
 #include "xla/pjrt/dump/dump.h"
 #include "xla/pjrt/event_pool.h"
 #include "xla/pjrt/host_callback.h"
+#include "xla/pjrt/host_memory_allocator.h"
 #include "xla/pjrt/host_memory_spaces.h"
 #include "xla/pjrt/layout_mode.h"
 #include "xla/pjrt/local_device_state.h"
@@ -276,7 +277,7 @@ PjRtStreamExecutorClient::PjRtStreamExecutorClient(
     int process_index,
     std::vector<std::unique_ptr<PjRtMemorySpace>> memory_spaces,
     std::unique_ptr<se::DeviceAddressAllocator> allocator,
-    std::unique_ptr<tsl::Allocator> host_memory_allocator,
+    std::unique_ptr<HostMemoryAllocator> host_memory_allocator,
     bool should_stage_host_to_device_transfers,
     std::unique_ptr<gpu::GpuExecutableRunOptions> gpu_run_options)
     : platform_id_(tsl::Fingerprint64(platform_name)),
@@ -302,7 +303,8 @@ PjRtStreamExecutorClient::PjRtStreamExecutorClient(
   }
 
   if (!host_memory_allocator_) {
-    host_memory_allocator_ = std::make_unique<CpuAllocator>();
+    host_memory_allocator_ = std::make_unique<BasicHostMemoryAllocator>(
+        std::make_unique<CpuAllocator>());
   }
 
   for (const std::unique_ptr<PjRtStreamExecutorDevice>& device :
@@ -642,7 +644,7 @@ PjRtStreamExecutorClient::LinearizeHostBufferInto(
     options.elem_size_in_bytes = primitive_util::ByteWidth(type);
     options.dims = dims;
     options.permutation = permutation;
-    options.input_layout = TransposePlan::Striding{*byte_strides};
+    options.input_striding = TransposePlan::Striding{*byte_strides};
     absl::MutexLock lock(transpose_mu_);
     TF_ASSIGN_OR_RETURN(transpose, transpose_cache_.GetOrCreate(options));
   }
@@ -669,12 +671,8 @@ PjRtStreamExecutorClient::LinearizeHostBufferInto(
   if (must_use_staging_buffer || (!IsDmaMapped(data, packed_size) &&
                                   (should_stage_host_to_device_transfers() &&
                                    packed_size < (int64_t{1} << 30)))) {
-    void* ptr = host_memory_allocator()->AllocateRaw(
-        tsl::Allocator::kAllocatorAlignment, transpose ? size : packed_size);
-    staging_buffer = std::shared_ptr<void>(
-        ptr, [host_memory_allocator = host_memory_allocator()](void* ptr) {
-          host_memory_allocator->DeallocateRaw(ptr);
-        });
+    staging_buffer =
+        host_memory_allocator()->Allocate(transpose ? size : packed_size);
   }
 
   // Copy the buffer into a staging buffer before returning control to the
