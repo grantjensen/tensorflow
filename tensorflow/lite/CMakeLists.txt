@@ -191,6 +191,9 @@ endif()
 find_package(cpuinfo REQUIRED)  #CPUINFO is used by XNNPACK and RUY library
 find_package(ml_dtypes REQUIRED)
 find_package(ruy REQUIRED)
+find_package(Protobuf REQUIRED)
+include(${TENSORFLOW_SOURCE_DIR}/tensorflow/cmake/utilities.cmake)
+include(${TENSORFLOW_SOURCE_DIR}/tensorflow/cmake/protobuf.cmake)
 # Include TSL, which is in tensorflow/third_party
 include_directories(
   ${TSL_SOURCE_DIR}
@@ -843,12 +846,6 @@ set(TFLITE_GENERATED_HEADERS_DIR ${CMAKE_BINARY_DIR}/tensorflow/lite)
 # Add the profiling proto directory.
 add_subdirectory(${TFLITE_SOURCE_DIR}/profiling/proto)
 
-# Add the benchmark result proto directory.
-add_subdirectory(${TFLITE_SOURCE_DIR}/tools/benchmark/proto)
-
-# Add the tf example directory.
-add_subdirectory(${TF_SOURCE_DIR}/core/example ${CMAKE_BINARY_DIR}/example_proto_generated)
-
 # The benchmark tool.
 add_subdirectory(${TFLITE_SOURCE_DIR}/tools/benchmark)
 
@@ -887,4 +884,3 @@ if(TFLITE_ENABLE_XNNPACK)
     PRIVATE ${TFLITE_TARGET_PRIVATE_OPTIONS}
   )
 endif()
-
