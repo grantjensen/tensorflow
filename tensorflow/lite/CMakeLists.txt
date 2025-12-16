@@ -183,6 +183,7 @@ find_package(Eigen3 REQUIRED)
 find_package(farmhash REQUIRED)
 find_package(fft2d REQUIRED)
 find_package(FlatBuffers REQUIRED)
+find_package(fp16_headers REQUIRED)
 find_package(gemmlowp REQUIRED)
 if (NOT CMAKE_SYSTEM_PROCESSOR OR CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
   find_package(NEON_2_SSE REQUIRED)
@@ -197,6 +198,16 @@ include_directories(
   ${XLA_SOURCE_DIR}
 )
 # Download necessary dependencies.
+IF(NOT DEFINED FP16_SOURCE_DIR)
+  MESSAGE(STATUS "Downloading FP16 to ${CMAKE_BINARY_DIR}/FP16-source (define FP16_SOURCE_DIR to avoid it)")
+  CONFIGURE_FILE(cmake/DownloadFP16.cmake "${CMAKE_BINARY_DIR}/FP16-download/CMakeLists.txt")
+  EXECUTE_PROCESS(COMMAND "${CMAKE_COMMAND}" -G "${CMAKE_GENERATOR}" .
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/FP16-download")
+  EXECUTE_PROCESS(COMMAND "${CMAKE_COMMAND}" --build .
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/FP16-download")
+  SET(FP16_SOURCE_DIR "${CMAKE_BINARY_DIR}/FP16-source" CACHE STRING "FP16 source directory")
+ENDIF()
+
 if(TFLITE_ENABLE_XNNPACK)
   # pthreadpool is used by XNNPACK.
   if(SYSTEM_PTHREADPOOL)
@@ -220,16 +231,6 @@ if(TFLITE_ENABLE_XNNPACK)
       "${CMAKE_BINARY_DIR}/pthreadpool")
   endif()
   list(APPEND TFLITE_TARGET_DEPENDENCIES pthreadpool)
-
-  IF(NOT DEFINED FP16_SOURCE_DIR)
-    MESSAGE(STATUS "Downloading FP16 to ${CMAKE_BINARY_DIR}/FP16-source (define FP16_SOURCE_DIR to avoid it)")
-    CONFIGURE_FILE(cmake/DownloadFP16.cmake "${CMAKE_BINARY_DIR}/FP16-download/CMakeLists.txt")
-    EXECUTE_PROCESS(COMMAND "${CMAKE_COMMAND}" -G "${CMAKE_GENERATOR}" .
-      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/FP16-download")
-    EXECUTE_PROCESS(COMMAND "${CMAKE_COMMAND}" --build .
-      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/FP16-download")
-    SET(FP16_SOURCE_DIR "${CMAKE_BINARY_DIR}/FP16-source" CACHE STRING "FP16 source directory")
-  ENDIF()
 endif()
 set(TF_TARGET_PRIVATE_OPTIONS "")
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
@@ -330,7 +331,6 @@ populate_tflite_source_vars("delegates" TFLITE_DELEGATES_SRCS)
 if(TFLITE_ENABLE_GPU)
   find_package(opencl_headers REQUIRED)
   find_package(vulkan_headers REQUIRED)
-  find_package(fp16_headers REQUIRED)
   # Android NDK already has OpenGL, EGL headers.
   if(NOT "${CMAKE_SYSTEM_NAME}" STREQUAL "Android")
     find_package(opengl_headers REQUIRED)
@@ -506,7 +506,6 @@ endif()
   )
 endif()
 if(_TFLITE_ENABLE_NNAPI)
-  find_package(fp16_headers REQUIRED)
   populate_tflite_source_vars("delegates/nnapi"
     TFLITE_DELEGATES_NNAPI_SRCS
     FILTER "(_test_list|_disabled)\\.(cc|h)$"
@@ -531,7 +530,6 @@ else()
   )
 endif()
 if(TFLITE_ENABLE_XNNPACK)
-  find_package(fp16_headers REQUIRED)
   find_package(XNNPACK REQUIRED)
   set(XNNPACK_NEON_2_SSE "")
   if (NOT CMAKE_SYSTEM_PROCESSOR OR CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
