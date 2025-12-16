@@ -34,11 +34,9 @@ OverridableFetchContent_GetProperties(fp16_headers)
 if(NOT fp16_headers)
   OverridableFetchContent_Populate(fp16_headers)
 endif()
-file(MAKE_DIRECTORY "${fp16_headers_SOURCE_DIR}/fp16")
-file(COPY "${fp16_headers_SOURCE_DIR}/include/fp16.h" DESTINATION "${fp16_headers_SOURCE_DIR}/fp16")
 
 include_directories(
   AFTER
-   "${fp16_headers_SOURCE_DIR}"
+   "${fp16_headers_SOURCE_DIR}/include"
 )
 
