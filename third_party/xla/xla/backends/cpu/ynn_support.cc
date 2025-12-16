@@ -48,10 +48,13 @@ const absl::flat_hash_map<HloOpcode, ynn_unary_operator>& GetYnnUnaryOpMap() {
           {HloOpcode::kCeil, ynn_unary_ceil},
           {HloOpcode::kConvert, ynn_unary_convert},
           {HloOpcode::kCos, ynn_unary_cosine},
+          {HloOpcode::kErf, ynn_unary_erf},
           {HloOpcode::kExp, ynn_unary_exp},
+          {HloOpcode::kExpm1, ynn_unary_expm1},
           {HloOpcode::kCbrt, ynn_unary_cube_root},
           {HloOpcode::kFloor, ynn_unary_floor},
           {HloOpcode::kLog, ynn_unary_log},
+          {HloOpcode::kLog1p, ynn_unary_log1p},
           {HloOpcode::kLogistic, ynn_unary_sigmoid},
           {HloOpcode::kNegate, ynn_unary_negate},
           {HloOpcode::kRoundNearestEven, ynn_unary_round},
@@ -141,6 +144,15 @@ bool IsElementwiseOpSupportedByYnn(const HloInstruction* hlo) {
     return false;
   }
 
+  // We don't want to handle ops that are too small, overhead will be
+  // significant.
+  // TODO(b/469236467): This threshold is probably too small in some cases and
+  // too big in others.
+  constexpr int64_t kMinElements = 64;
+  if (ShapeUtil::ElementsIn(hlo->shape()) < kMinElements) {
+    return false;
+  }
+
   switch (hlo->operand_count()) {
     case 1:
       return YnnUnaryOperator(hlo->opcode()).ok();
@@ -216,6 +228,13 @@ absl::StatusOr<bool> IsDotSupportedByYnn(
   }
 
   return true;
+}
+
+absl::StatusOr<bool> IsDotSupportedByYnn(const HloInstruction* hlo) {
+  CHECK_EQ(hlo->opcode(), HloOpcode::kDot);
+  return IsDotSupportedByYnn(hlo->dot_dimension_numbers(),
+                             hlo->operand(0)->shape(), hlo->operand(1)->shape(),
+                             hlo->shape());
 }
 
 bool IsReduceOpSupportedByYnn(const HloInstruction* hlo) {

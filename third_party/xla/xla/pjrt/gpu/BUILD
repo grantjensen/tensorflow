@@ -85,6 +85,7 @@ cc_library(
         "//xla/pjrt:common_pjrt_client",
         "//xla/pjrt:device_event",
         "//xla/pjrt:event_pool",
+        "//xla/pjrt:host_memory_allocator",
         "//xla/pjrt:host_memory_spaces",
         "//xla/pjrt:local_device_state",
         "//xla/pjrt:mlir_to_hlo",
@@ -177,7 +178,6 @@ cc_library(
     ]) + if_cuda([
         # keep sorted
         "//xla/stream_executor/gpu:gpu_cudamallocasync_allocator",
-        "//xla/stream_executor/gpu:gpu_stream",
         "@local_config_cuda//cuda:cuda_headers",
     ]) + if_rocm([
         # keep sorted
